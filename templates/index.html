@@ -1,0 +1,12 @@
+<doctype html>
+<html>
+	{% for item in sorted_array %}
+	{% if item.type == "playlist" %}
+
+	{% set list = item.uri.split(":") %}
+	
+	<iframe src="https://open.spotify.com/embed/playlist/{{ list[2] }}" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+		
+	{% endif %}
+	{% endfor %}
+</html>
