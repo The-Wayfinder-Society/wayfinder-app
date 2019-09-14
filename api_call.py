@@ -14,6 +14,8 @@ import subprocess
 from glob import glob
 import time
 
+from db import DataBase
+
 # Spotify URLS
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
@@ -30,6 +32,8 @@ top_artists_endpoint = "{}/top/artists".format(user_profile_api_endpoint)
 def get(endpoint, token, max_retries=10, delay=4):
     authorization_header = {"Authorization": "Bearer {}".format(token)}
     try:
+        logging.info("GET: " + endpoint)
+        print("GET: " + endpoint)
         response = requests.get(endpoint, headers=authorization_header)
     except requests.exceptions.ConnectionError as e:
         response = {}
@@ -237,6 +241,28 @@ def scrape_data(token, spotipy_session, user_id):
     if not os.path.exists(user_folder):
         os.makedirs(user_folder)
     
+    # db = DataBase()
+
+    # user_db_entry = db.get(user_id)
+    
+    # if not user_db_entry:
+    #     db.write(user_id, "touch", "null")
+
+    # def scrape_if_not_in_db(entry, scraper, *args):
+    #     try:
+    #         data = user_db_entry[entry]
+    #     except KeyError:
+    #         data = scraper(*args)
+    #         db.update(user_id, entry, data)
+    
+    # profile_data = scrape_if_not_in_db("profile", get_profile_data, token)
+
+    # playlists_data = scrape_if_not_in_db("playlists", get_user_playlists, token, user_id)
+    # library_data = scrape_if_not_in_db("library", scrape_library, token, spotipy_session, user_id)
+    # recently_played = scrape_if_not_in_db("recently_played", scrape_recently_played, token, spotipy_session, user_id)
+    # top_artists = scrape_if_not_in_db("top_artists", scrape_top_artists, token, spotipy_session, user_id)
+    # top_songs = scrape_if_not_in_db("top_tracks", scrape_top_songs, token, spotipy_session, user_id)
+
     time_ranges = ["short_term", "medium_term", "long_term"]
     profile_file = os.path.join(user_folder, "profile.json")
     playlists_file = os.path.join(user_folder, "playlists.json")
