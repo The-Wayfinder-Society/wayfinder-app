@@ -5,6 +5,7 @@ import json
 import datetime
 import os
 import logging
+from pprint import pprint
 
 import auth, api_call
 
@@ -13,8 +14,6 @@ app.secret_key = b"dfsdfa"
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-    datefmt='%m-%d %H:%M',
 )
 logger = logging.getLogger("")
 
@@ -69,15 +68,16 @@ def construct_query(params):
     query = "&".join(query_args)
     return query
 
-# Checks if the user has cookies set
-# Redirects to login page if not
-# Refreshes access token if it has expired
-def check_cookies(next_page):
+# Checks that the user has logged in by checking if
+# we have API access to their account by looking at
+# browser cookies
+# Returns no response if we have API access
+# Redirects to /login if no API access
+# Redirects to /refresh if API access has expired
+# Each redirect should land the user back at the url passed with return_page
+def check_logged_in(return_page):
     user_auth_token = request.cookies.get("SpotifyUserAccessToken")
     user_refresh_token = request.cookies.get("SpotifyUserRefreshToken")
-
-    logger.info("Auth Token: " + str(user_auth_token))
-    logger.info("Refresh Token: " + str(user_refresh_token))
 
     if user_auth_token:
         return None
@@ -86,7 +86,7 @@ def check_cookies(next_page):
             query = construct_query(
                 {
                     "code" : user_refresh_token,
-                    "next" : next_page
+                    "next" : return_page
                 }
             )
             response = redirect(url_for("refresh") + "?" + query)
@@ -261,7 +261,7 @@ def refresh():
 # Displays the visualization
 @app.route("/viz")
 def viz():
-    response = check_cookies(url_for("viz"))
+    response = check_logged_in(url_for("viz"))
     if response:
         return response
     else:
@@ -282,6 +282,20 @@ def viz():
         user_basename = "static/data/{}".format(profile_data['id'])
         
         return render_template("viz.html", user_id=profile_data['id'], base_url=APP_URL)
+
+@app.route("/playlists")
+def playlists():
+    response = check_logged_in(url_for("playlists"))
+    if response:
+        return response
+    else:
+        user_auth_token = request.cookies.get("SpotifyUserAccessToken")
+        profile_data = api_call.get_profile_data(user_auth_token)
+        playlists = api_call.get_user_playlists(user_auth_token, profile_data['id'])
+        pprint(playlists)
+        return """
+            {}
+        """.format([p['name'] for p in playlists])
 
 @app.route('/data/<path:filepath>')
 def data(filepath):
