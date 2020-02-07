@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, render_template, url_for, send_from_directory
+from flask import Flask, request, redirect, render_template, url_for, send_from_directory, session
 import requests
 from urllib.parse import quote
 import json
@@ -8,9 +8,15 @@ import logging
 
 import auth, api_call
 
-from scrape_db import scrape_profile
-
 app = Flask(__name__)
+app.secret_key = b"dfsdfa"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+    datefmt='%m-%d %H:%M',
+)
+logger = logging.getLogger("")
 
 # the scope of access we are requesting from the user
 # we ask to read all playlists, library songs, recently played, and top artists / tracks
@@ -30,51 +36,85 @@ SCOPES = " ".join(["playlist-read-private",
 try:
     CLIENT_ID = os.environ["CLIENT_ID"]
 except:
-    print("CLIENT_ID environment variable must be set!")
+    logger.error("CLIENT_ID environment variable must be set!")
     exit()
 
 try:
     CLIENT_SECRET = os.environ["CLIENT_SECRET"]
 except:
-    print("CLIENT_SECRET environment variable must be set!")
+    logger.error("CLIENT_SECRET environment variable must be set!")
     exit()
 
 try:
-    APP_URL = os.environ["APP_URL"]
-    CALLBACK_URL = APP_URL + "/callback"
+    APP_URL = os.environ["APP_URL"]    
 except:
-    print("APP_URL environment variable must be set!")
+    logger.error("APP_URL environment variable must be set!")
     exit()
+
+try:
+    PORT = os.environ["PORT"]
+except:
+    logger.warning("PORT environment variable not set, continuing without it set.")
+    PORT = ""
+
+APP_URL = APP_URL
+CALLBACK_URL = APP_URL + "/callback"
+
+def construct_query(params):
+    # use quote to escape out bad URL characters
+    query_args = []
+    for key, value in params.items():
+        query_args.append(f"{key}={quote(value)}")
+
+    query = "&".join(query_args)
+    return query
 
 # Checks if the user has cookies set
 # Redirects to login page if not
 # Refreshes access token if it has expired
-def check_cookies():
-    user_auth_token = request.cookies.get("SpotifyVizAccessToken")
-    user_refresh_token = request.cookies.get("SpotifyVizRefreshToken")
+def check_cookies(next_page):
+    user_auth_token = request.cookies.get("SpotifyUserAccessToken")
+    user_refresh_token = request.cookies.get("SpotifyUserRefreshToken")
 
-    print("Auth Token:", user_auth_token)
-    print("Refresh Token:", user_refresh_token)
+    logger.info("Auth Token: " + str(user_auth_token))
+    logger.info("Refresh Token: " + str(user_refresh_token))
 
     if user_auth_token:
         return None
     else:
         if user_refresh_token:
-            response = redirect(url_for("refresh") + "?code=" + user_refresh_token)
+            query = construct_query(
+                {
+                    "code" : user_refresh_token,
+                    "next" : next_page
+                }
+            )
+            response = redirect(url_for("refresh") + "?" + query)
             return response
         else:
-            response = redirect(url_for("login"))
+            response = redirect(url_for("login") + "?" + query)
             return response
 
 # The home page
 # Return a welcome page!
 @app.route("/")
 def index():
-    response = check_cookies()
-    if response:
-        return response
+    if 'profile_data' in session:
+        profile_data = session['profile_data']
+
+        # get the user's name from their profile data
+        user_id = profile_data['id']
+        display_name = profile_data['display_name']
+        # we prefer to use the user's display name, but some don't
+        # have one set, so we'll default back on their id
+        if display_name:
+            name = display_name
+        else:
+            name = user_id
     else:
-        return "Welcome to our viz. Click here: <a href=" + url_for("viz") + ">" + url_for("viz") + "</a>"
+        name = "User"
+
+    return render_template("index.html", name=name, redirect=url_for("viz"))
 
 # Login routine
 # 1) Redirect user to Spotify for authorization
@@ -85,58 +125,56 @@ def index():
 def login():
     authorize_endpoint = "https://accounts.spotify.com/authorize"
     params = {
-                "client_id" : CLIENT_ID,
-                "response_type" : "code", 
-                "redirect_uri" : CALLBACK_URL,
-                # state is useful for verifying that the callback came from the same browser
-                # so can't spoof callback
-                # "state" : 
-                # A space separated list of [scopes](https://developer.spotify.com/documentation/general/guides/authorization-guide/#list-of-scopes)
-                "scope" : SCOPES,
-                # If true, the user will not be automatically redirected and will have to approve the app again.
-                "show_dialog" : "false"
-            }
+        "client_id" : CLIENT_ID,
+        "response_type" : "code", 
+        "redirect_uri" : CALLBACK_URL,
+        # state is useful for verifying that the callback came from the same browser
+        # so can't spoof callback
+        # "state" : 
+        # A space separated list of [scopes](https://developer.spotify.com/documentation/general/guides/authorization-guide/#list-of-scopes)
+        "scope" : SCOPES,
+        # If true, the user will not be automatically redirected and will have to approve the app again.
+        "show_dialog" : "false"
+    }
     
-    print(params)
-
-    # use quote to escape out bad URL characters
-    query_args = []
-    for key, value in params.items():
-        query_args.append(f"{key}={quote(value)}")
-
-    query = "&".join(query_args)
+    logger.info(params)
+    query = construct_query(params)
 
     url = f"{authorize_endpoint}/?{query}"
-    print(f"redirecting to: {url}")
+    logger.info(f"redirecting to: {url}")
     return redirect(url)
 
-# 2) Once the user has verified we can access their account, get an API token (access_token) unique to the user
-#    that lets us make API calls on their behalf
-# Callback for Spotify authorization
-# Stores user authorization token as cookie in user browser
-@app.route("/callback")
-def callback():
-    # The authorization code from Spotify should be passed as ?code=AQD...X10
-    # this authorization code can be exchanged for an access token to the user's data
-    authorization_code = request.args['code']
-
+def get_access_and_refresh_token(grant_type, code):
     # make a POST request to the access token endpoint
+    access_token_endpoint = "https://accounts.spotify.com/api/token"
     # request requires body parameters
     # grant_type = "authorization_code"
-    # code = the authorization code
-    # redirect_uri = the redirect uri, for validation only, does not redirect
     # and requires headers
     # Authorization: Basic *<base64 encoded client_id:client_secret>*
     # An alternative way to send the client id and secret is as request parameters (client_id and client_secret) in the POST body
-    access_token_endpoint = "https://accounts.spotify.com/api/token"
+    parameters = {
+        "client_id" : CLIENT_ID,
+        "client_secret" : CLIENT_SECRET,
+        "grant_type" : grant_type, 
+    }
 
-    parameters = { 
-                    "grant_type" : "authorization_code", 
-                    "code" : authorization_code,
-                    "redirect_uri" : CALLBACK_URL,
-                    "client_id" : CLIENT_ID,
-                    "client_secret" : CLIENT_SECRET,
-                }
+    if grant_type == "authorization_code":
+        # code = the authorization code
+        # redirect_uri = the redirect uri, for validation only, does not redirect
+        parameters.update(
+            {
+                "redirect_uri" : CALLBACK_URL,
+                "code" : code,
+            }
+        )
+    elif grant_type == "refresh_token":
+        parameters.update(
+            {
+                "refresh_token" : code,
+            }
+        )
+    else:
+        raise Exception
 
     token_post_response = requests.post(access_token_endpoint, data=parameters)
     # If the POST response is okay, we expect the following data to be returned in a JSON object
@@ -148,86 +186,88 @@ def callback():
     token_data = token_post_response.json()
 
     if token_post_response.status_code == requests.codes.ok:
-        access_token = token_data['access_token']
-        token_type = token_data['token_type']
-        scope = token_data['scope']
-        expires_in = token_data['expires_in']
-        refresh_token = token_data['refresh_token']
+        access_token = token_data.get('access_token', None)
+        token_type = token_data.get('token_type', None)
+        scope = token_data.get('scope', None)
+        expires_in = token_data.get('expires_in', None)
+        refresh_token = token_data.get('refresh_token', None)
 
-        print(json.dumps(token_data, indent=2))
+        # a refresh token won't be returned if we are requesting a new access token
+        # using a refresh token (code)
+        # so just return the one that was passed to this function
+        if refresh_token is None:
+            refresh_token = code
 
-        response = redirect(url_for("viz"))
         expiration_date = datetime.datetime.now() + datetime.timedelta(seconds=expires_in)
 
-        print("Callback Auth Token:", access_token)
-        print("Callback Refresh Token:", refresh_token)
-
-        response.set_cookie("SpotifyVizAccessToken", access_token, max_age=expires_in, expires=expiration_date)
-        response.set_cookie("SpotifyVizRefreshToken", refresh_token)
-
-        return response
+        return access_token, refresh_token, expires_in, expiration_date
     else:
         raise Exception("Got response code:", token_post_response.status_code, 
                         "Error:", token_data['error'], 
                         "Error Description:", token_data['error_description'])
+
+# 2) Once the user has verified we can access their account, get an API token (access_token) unique to the user
+#    that lets us make API calls on their behalf
+# Callback for Spotify authorization
+# Stores user authorization token as cookie in user browser
+@app.route("/callback")
+def callback():
+    # The authorization code from Spotify should be passed as ?code=AQD...X10
+    # this authorization code can be exchanged for an access token to the user's data
+    try:
+        authorization_code = request.args['code']
+    except:
+        return redirect(url_for("login"))
+
+    try:
+        next_page = request.args['next']
+    except:
+        next_page = url_for("index")
+
+    access_token, refresh_token, expires_in, expiration_date = (
+        get_access_and_refresh_token("authorization_code", authorization_code)
+    )
+    response = redirect(next_page)
+
+    response.set_cookie("SpotifyUserAccessToken", access_token, max_age=expires_in, expires=expiration_date)
+    response.set_cookie("SpotifyUserRefreshToken", refresh_token)
+    
+    return response
 
 # 3) If the API token (access_token) has expired, use a refresh token (refresh_token) which
 #    exists indefinitely and is unique to the user to ask for a new API token
-# The code flow here is similar to /callback, except the POST request parameters are different
-# we provide "refresh_token" instead of "code"
 @app.route("/refresh")
 def refresh():
-    refresh_token = request.args['code']
-    access_token_endpoint = "https://accounts.spotify.com/api/token"
+    try:
+        refresh_token = request.args['code']
+    except:
+        return redirect(url_for("login"))
 
-    parameters = { 
-                    "grant_type" : "refresh_token", 
-                    "refresh_token" : refresh_token,
-                    "client_id" : CLIENT_ID,
-                    "client_secret" : CLIENT_SECRET,
-                }
+    try:
+        next_page = request.args['next']
+    except:
+        next_page = url_for("index")
+
+    access_token, refresh_token, expires_in, expiration_date = (
+        get_access_and_refresh_token("refresh_token", refresh_token)
+    )
+    response = redirect(next_page)
+
+    response.set_cookie("SpotifyUserAccessToken", access_token, max_age=expires_in, expires=expiration_date)
+    response.set_cookie("SpotifyUserRefreshToken", refresh_token)
     
-    token_post_response = requests.post(access_token_endpoint, data=parameters)
-    token_data = token_post_response.json()
-
-    if token_post_response.status_code == requests.codes.ok:
-        access_token = token_data['access_token']
-        token_type = token_data['token_type']
-        scope = token_data['scope']
-        expires_in = token_data['expires_in']
-        # a new refresh_token may be passed, update if we get one back from Spotify
-        try:
-            refresh_token = token_data['refresh_token']
-        except:
-            pass
-        
-        print(json.dumps(token_data, indent=2))
-
-        response = redirect(url_for("viz"))
-        expiration_date = datetime.datetime.now() + datetime.timedelta(seconds=expires_in)
-
-        print("Callback Auth Token:", access_token)
-        print("Callback Refresh Token:", refresh_token)
-
-        response.set_cookie("SpotifyVizAccessToken", access_token, max_age=expires_in, expires=expiration_date)
-        response.set_cookie("SpotifyVizRefreshToken", refresh_token)
-
-        return response
-    else:
-        raise Exception("Got response code:", token_post_response.status_code, 
-                        "Error:", token_data['error'], 
-                        "Error Description:", token_data['error_description'])
+    return response
 
 # Displays the visualization
 @app.route("/viz")
 def viz():
-    response = check_cookies()
+    response = check_cookies(url_for("viz"))
     if response:
         return response
     else:
         spotipy_session = auth.create_spotipy_client_session(CLIENT_ID, CLIENT_SECRET)
 
-        user_auth_token = request.cookies.get("SpotifyVizAccessToken")
+        user_auth_token = request.cookies.get("SpotifyUserAccessToken")
         
         profile_data = api_call.get_profile_data(user_auth_token)
         user_id = profile_data['id']
@@ -243,71 +283,10 @@ def viz():
         
         return render_template("viz.html", user_id=profile_data['id'], base_url=APP_URL)
 
-@app.route("/read-db")
-def read_db():
-    user = request.args['user']
-    from db import DataBase
-    db = DataBase("Wayfinder")
-    return json.dumps(db.get(user), default=str)
-
-@app.route("/viz-2")
-def viz_2():
-    response = check_cookies()
-    if response:
-        return response
-    else:
-        import boto3
-
-        user_auth_token = request.cookies.get("SpotifyVizAccessToken")
-
-        client = boto3.client('lambda')
-
-        function_name = "scrape_db"
-        invocation_type = "Event"
-        payload = json.dumps({ "token" : user_auth_token })
-
-        response = client.invoke(
-                FunctionName=function_name,
-                InvocationType=invocation_type,
-                Payload=payload,
-            )
-
-        if not response['StatusCode'] == 202:
-            raise Exception(f"Lambda invoke failed with payload: {payload}. Response received:\n{response}")
-        
-        user_id = scrape_profile(user_auth_token)['id']
-
-        return """
-                <html>
-                    <body>
-                        <p>
-                        Check console.
-                        </p>
-                        <p id="status">
-                        Status.
-                        </p>
-                        <script>
-                            poll_db = function() {
-                                fetch('/read-db?user=""" + user_id + """')
-                                .then(function(response) { 
-                                    return response.json();
-                                }).then(function(json_data) {
-                                    console.log(json_data);
-                                    document.getElementById("status").innerHTML = json_data["message"];
-                                    console.log(json_data["message"]);
-                                    if (json_data["message"] === "Done") {
-                                        clearInterval(interval);
-                                    }
-                                });
-                            }
-                            interval = setInterval(poll_db, 1000)
-                        </script>
-                    </body>
-                </html>
-                """
-
-
 @app.route('/data/<path:filepath>')
 def data(filepath):
     # print(filepath)
     return send_from_directory('/tmp/data', filepath)
+
+if __name__ == "__main__":
+    app.run(debug=True, port=PORT)
