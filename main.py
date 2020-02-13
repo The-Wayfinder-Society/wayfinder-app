@@ -51,15 +51,15 @@ except:
     exit()
 
 try:
-    PORT = os.environ["PORT"]
+    LOCAL_PORT = os.environ["LOCAL_PORT"]
 except:
     logger.warning("PORT environment variable not set, continuing without it set.")
-    PORT = None
+    LOCAL_PORT = None
 
 APP_URL = APP_URL
 
-if PORT:
-    CALLBACK_URL = APP_URL + ":" + PORT + "/callback"
+if LOCAL_PORT:
+    CALLBACK_URL = APP_URL + ":" + LOCAL_PORT + "/callback"
 else:
     CALLBACK_URL = APP_URL + "/callback"
 
@@ -290,8 +290,8 @@ def viz():
 
         user_basename = "static/data/{}".format(profile_data['id'])
         
-        if PORT:
-            base_url = APP_URL + ":" + PORT
+        if LOCAL_PORT:
+            base_url = APP_URL + ":" + LOCAL_PORT
         else:
             base_url = APP_URL
 
@@ -317,7 +317,7 @@ def data(filepath):
     return send_from_directory('/tmp/data', filepath)
 
 if __name__ == "__main__":
-    if PORT:
-        app.run(debug=True, port=PORT)
+    if LOCAL_PORT:
+        app.run(debug=True, port=LOCAL_PORT)
     else:
         app.run(debug=True)
