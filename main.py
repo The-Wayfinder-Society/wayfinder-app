@@ -96,6 +96,11 @@ def check_logged_in(return_page):
             response = redirect(url_for("refresh") + "?" + query)
             return response
         else:
+            query = construct_query(
+                {
+                    "next" : return_page
+                }
+            )
             response = redirect(url_for("login") + "?" + query)
             return response
 
