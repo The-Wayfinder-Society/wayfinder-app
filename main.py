@@ -231,7 +231,7 @@ def callback():
     try:
         next_page = request.args['next']
     except:
-        next_page = url_for("index")
+        next_page = url_for("viz")
 
     access_token, refresh_token, expires_in, expiration_date = (
         get_access_and_refresh_token("authorization_code", authorization_code)
