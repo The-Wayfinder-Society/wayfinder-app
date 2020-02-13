@@ -20,7 +20,9 @@ logger = logging.getLogger("")
 # ensure that the file /tmp/data/data_genres_average_features.json exists
 # TODO: Pull from remote URL
 if not os.path.exists("/tmp/data/data_genres_average_features.json"):
-    os.makedirs("/tmp/data")
+    if not os.path.exists("/tmp/data"):
+        os.makedirs("/tmp/data")
+    
     shutil.copyfile("data/data_genres_average_features.json", "/tmp/data/data_genres_average_features.json")
 
 # the scope of access we are requesting from the user
