@@ -54,10 +54,14 @@ try:
     PORT = os.environ["PORT"]
 except:
     logger.warning("PORT environment variable not set, continuing without it set.")
-    PORT = ""
+    PORT = None
 
 APP_URL = APP_URL
-CALLBACK_URL = APP_URL + ":" + PORT + "/callback"
+
+if PORT:
+    CALLBACK_URL = APP_URL + ":" + PORT + "/callback"
+else:
+    CALLBACK_URL = APP_URL + "/callback"
 
 def construct_query(params):
     # use quote to escape out bad URL characters
@@ -92,11 +96,6 @@ def check_logged_in(return_page):
             response = redirect(url_for("refresh") + "?" + query)
             return response
         else:
-            query = construct_query(
-                {
-                    "next" : return_page
-                }
-            )
             response = redirect(url_for("login") + "?" + query)
             return response
 
@@ -286,7 +285,12 @@ def viz():
 
         user_basename = "static/data/{}".format(profile_data['id'])
         
-        return render_template("viz.html", user_id=profile_data['id'], base_url=APP_URL + ":" + PORT)
+        if PORT:
+            base_url = APP_URL + ":" + PORT
+        else:
+            base_url = APP_URL
+
+        return render_template("viz.html", user_id=profile_data['id'], base_url=base_url)
 
 @app.route("/playlists")
 def playlists():
@@ -308,4 +312,7 @@ def data(filepath):
     return send_from_directory('/tmp/data', filepath)
 
 if __name__ == "__main__":
-    app.run(debug=True, port=PORT)
+    if PORT:
+        app.run(debug=True, port=PORT)
+    else:
+        app.run(debug=True)
