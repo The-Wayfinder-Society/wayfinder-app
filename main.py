@@ -6,7 +6,7 @@ import datetime
 import os
 import logging
 from pprint import pprint
-
+import shutil
 import auth, api_call
 
 app = Flask(__name__)
