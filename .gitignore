@@ -109,3 +109,5 @@ venv.bak/
 
 # dev environment folder
 environment
+
+.DS_Store
