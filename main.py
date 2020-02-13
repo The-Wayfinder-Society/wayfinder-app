@@ -57,7 +57,7 @@ except:
     PORT = ""
 
 APP_URL = APP_URL
-CALLBACK_URL = APP_URL + "/callback"
+CALLBACK_URL = APP_URL + ":" + PORT + "/callback"
 
 def construct_query(params):
     # use quote to escape out bad URL characters
@@ -286,7 +286,7 @@ def viz():
 
         user_basename = "static/data/{}".format(profile_data['id'])
         
-        return render_template("viz.html", user_id=profile_data['id'], base_url=APP_URL)
+        return render_template("viz.html", user_id=profile_data['id'], base_url=APP_URL + ":" + PORT)
 
 @app.route("/playlists")
 def playlists():
