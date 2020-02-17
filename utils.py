@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import spotipy
 
 # Given a lsit of tracks, get their song features
@@ -18,8 +19,8 @@ def featurize_tracks(tracks, spotipy_session, chunk_size=100, verbose=False):
     # Get all of the features we are interested in from a set of track URIs
     def get_features_for_songs(songs, chunk_size=100, verbose=False):
         all_features = []
-        num_chunks = int(len(songs) / chunk_size)
-        remainder = int(((len(songs) / chunk_size) % 1) * chunk_size)
+        num_chunks = math.floor(len(songs) / chunk_size)
+        remainder = round(((len(songs) / chunk_size) % 1) * chunk_size)
         for i in range(num_chunks):
             low = chunk_size * i
             high = chunk_size * (i + 1)
@@ -96,8 +97,8 @@ def featurize_tracks(tracks, spotipy_session, chunk_size=100, verbose=False):
 def get_artists_genres(artists, spotipy_session, chunk_size=50, verbose=False):
     all_genres = []
     num_artists = len(artists)
-    num_chunks = int(num_artists / chunk_size)
-    remainder = int(((num_artists / chunk_size) % 1) * chunk_size)
+    num_chunks = math.floor(num_artists / chunk_size)
+    remainder = round(((num_artists / chunk_size) % 1) * chunk_size)
     
     for i in range(num_chunks):
         low = chunk_size * i
