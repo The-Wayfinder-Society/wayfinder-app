@@ -91,7 +91,11 @@ var genre_classifiers = {
                 (!genre.toLowerCase().includes('dublin'));
     },
     "Classical" : function(genre) {
-        return isClassical = genre.toLowerCase().includes('classical');
+        return (genre.toLowerCase().includes('classical')) ||
+                (genre.toLowerCase().includes('baroque')) ||
+                (genre.toLowerCase().includes('choir')) ||
+                ((genre.toLowerCase().includes('orchestra')) &&
+                (!genre.toLowerCase().includes('jazz')) );
     },
     "Metal" : function(genre) {
         return (genre.toLowerCase().includes('metal')) || 
