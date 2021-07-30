@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "base64url": "^3.0.1",
+    "js-cookie": "^3.0.0",
+    "spotify-web-api-node": "^5.0.2"
+  },
+  "name": "wayfinder-app",
+  "description": "Login with your Spotify credentials on www.musicalwayfinder.com",
+  "version": "1.0.0",
+  "main": "js-test/main.js",
+  "devDependencies": {},
+  "scripts": {
+    "build": "watchify js-test/main.js -o js-test/bundle.js",
+    "serve": "http-server js-test/ -p 5000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/The-Wayfinder-Society/wayfinder-app.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/The-Wayfinder-Society/wayfinder-app/issues"
+  },
+  "homepage": "https://github.com/The-Wayfinder-Society/wayfinder-app#readme"
+}

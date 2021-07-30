@@ -1,6 +1,9 @@
 Login with your Spotify credentials on www.musicalwayfinder.com
 
-# Set up a development environment
+# Set up a development environment (Python backend)
+
+
+## Installation
 
 Clone this repository:
 
@@ -34,4 +37,34 @@ which python
 Install the python modules required for development:
 ```
 python -m pip install -r requirements.txt
+```
+
+# Set up a development environment (JS backend)
+
+## Installation
+
+Clone this repository:
+
+```
+git clone https://github.com/The-Wayfinder-Society/wayfinder-app.git
+```
+
+Set up a conda environment
+```
+$ cd wayfinder-app
+$ conda create -p $PWD/env -f environment.yaml
+```
+
+Install required node modules
+```
+$ npm install
+```
+
+Build `bundle.js`
+```
+$ npm run build
+```
+and serve the web app:
+```
+$ npm run serve
 ```
