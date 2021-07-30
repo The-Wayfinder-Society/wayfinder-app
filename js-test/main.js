@@ -185,6 +185,7 @@ function initApi() {
     spotifyApi.setRefreshToken(refresh_token);
 }
 
+// From: https://github.com/thelinmichael/spotify-web-api-node/issues/217
 async function callSpotifyWithRetry(func, retries=0, max_retries=10) {
     try {
         return await func();
