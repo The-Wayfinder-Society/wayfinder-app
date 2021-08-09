@@ -1,14 +1,15 @@
 {
   "dependencies": {
     "base64url": "^3.0.1",
+    "d3": "^7.0.0",
     "js-cookie": "^3.0.0",
+    "pako": "^2.0.4",
     "spotify-web-api-node": "^5.0.2"
   },
   "name": "wayfinder-app",
   "description": "Login with your Spotify credentials on www.musicalwayfinder.com",
   "version": "1.0.0",
   "main": "js-test/main.js",
-  "devDependencies": {},
   "scripts": {
     "build": "watchify js-test/main.js -o js-test/bundle.js",
     "serve": "http-server js-test/ -p 5000"
