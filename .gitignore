@@ -109,5 +109,9 @@ venv.bak/
 
 # dev environment folder
 environment
+env
+
+# node
+node_modules
 
 .DS_Store

@@ -1,0 +1,8 @@
+channels:
+  - defaults
+dependencies:
+  - mamba
+  - nodejs
+  - ca-certificates
+  - certifi
+  - openssl
