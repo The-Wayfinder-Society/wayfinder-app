@@ -49,10 +49,17 @@ Clone this repository:
 git clone https://github.com/The-Wayfinder-Society/wayfinder-app.git
 ```
 
-Set up a conda environment
+Set up a conda environment (on OSX)
 ```
 $ cd wayfinder-app
-$ conda create -p $PWD/env -f environment.yaml
+$ conda env create -p $PWD/env -f environment.osx.yaml
+```
+Or create the environment from scratch:
+```
+$ conda create -p $PWD/env
+$ conda activate ./env
+$ conda install -c conda-forge mamba
+$ mamba install nodejs
 ```
 
 Install required node modules
