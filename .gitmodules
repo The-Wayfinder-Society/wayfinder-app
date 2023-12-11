@@ -1,0 +1,3 @@
+[submodule "the-wayfinder-society.github.io"]
+	path = website
+	url = git@github.com:The-Wayfinder-Society/the-wayfinder-society.github.io.git

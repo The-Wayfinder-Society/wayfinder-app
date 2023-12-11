@@ -14,8 +14,8 @@
   "version": "1.0.0",
   "main": "js/main.js",
   "scripts": {
-    "build": "cp -r ./js/* ./docs/. && ./node_modules/.bin/watchify js/main.js -o docs/bundle.js",
-    "serve": "http-server ./docs -p 5000"
+    "build": "cp -r ./js/* ./website/docs/. && ./node_modules/.bin/watchify ./js/main.js -o ./website/docs/bundle.js",
+    "serve": "http-server ./website/docs -p 5000"
   },
   "repository": {
     "type": "git",
